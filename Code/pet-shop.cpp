@@ -106,27 +106,77 @@ int main()
 	return 0;
 }
 
-//////////////////////////////////////////////////////////////
-//TODO
-//////////////////////////////////////////////////////////////
+class semaphore2
+{
+	long catCount;
+	long dogCount;
+	std::mutex mtx;
+	std::condition_variable cv;
+
+public:
+	semaphore2(long const c = 0)
+	{
+		catCount = c;
+		dogCount = c;
+	}
+
+	void acquire(bool cat) // aka "wait", "down", "p"
+	{
+		auto lock = std::unique_lock<std::mutex>(mtx);
+		if (cat)
+		{
+			while (dogCount)
+				cv.wait(lock);
+			++catCount;
+		}
+		else
+		{
+			while (catCount)
+				cv.wait(lock);
+			++dogCount;
+		}
+	}
+
+	void release(bool cat) // aka "signal", "up", "v"
+	{
+		auto lock = std::unique_lock<std::mutex>(mtx);
+		if (cat)
+		{
+			catCount--;
+		}
+		else
+		{
+			dogCount--;
+		}
+		cv.notify_one();
+	}
+};
+
+auto eating = new semaphore(1);
+auto line = new semaphore2(0);
 
 void cat(int const id)
 {
-	while(true)
+	while (true)
 	{
-		do_stuff(id, "cat", "playing");
-		
+		// do_stuff(id, "cat", "playing");
+		line->acquire(true);
+		line->release(true);
+		eating->acquire();
 		do_stuff(id, "cat", "eating");
+		eating->release();
 	}
 }
 
 void dog(int const id)
 {
-	while(true)
+	while (true)
 	{
-		do_stuff(id, "dog", "playing");
-		
+		// do_stuff(id, "dog", "playing");
+		line->acquire(false);
+		line->release(false);
+		eating->acquire();
 		do_stuff(id, "dog", "eating");
+		eating->release();
 	}
 }
-
