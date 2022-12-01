@@ -106,65 +106,43 @@ int main()
 	return 0;
 }
 
-class semaphore2
-{
-	long catCount;
-	long dogCount;
-	std::mutex mtx;
-	std::condition_variable cv;
+semaphore 3(1), 2(1);
 
-public:
-	semaphore2(long const c = 0)
-	{
-		catCount = c;
-		dogCount = c;
-	}
-
-	void acquire(bool cat) // aka "wait", "down", "p"
-	{
-		auto lock = std::unique_lock<std::mutex>(mtx);
-		if (cat)
-		{
-			while (dogCount)
-				cv.wait(lock);
-			++catCount;
-		}
-		else
-		{
-			while (catCount)
-				cv.wait(lock);
-			++dogCount;
-		}
-	}
-
-	void release(bool cat) // aka "signal", "up", "v"
-	{
-		auto lock = std::unique_lock<std::mutex>(mtx);
-		if (cat)
-		{
-			catCount--;
-		}
-		else
-		{
-			dogCount--;
-		}
-		cv.notify_one();
-	}
-};
-
-auto eating = new semaphore(1);
-auto line = new semaphore2(0);
+std::mutex mutex_a;
+std::mutex mutex_b;
+int count_a = 0;
+int count_b = 0;
 
 void cat(int const id)
 {
 	while (true)
 	{
 		// do_stuff(id, "cat", "playing");
-		line->acquire(true);
-		line->release(true);
-		eating->acquire();
+		a.acquire();
+
+		if (count_b >= MAX_PETS) {
+			a.release();
+			continue;
+		}
+		mutex_b.lock();
+		count_b++;
+
+		if(count_b == 1) {
+			s.acquire();
+		}
+
+		mutex_b.unlock();
+		a.release();
+		std::printf(" %d ", count_b);
 		do_stuff(id, "cat", "eating");
-		eating->release();
+		mutex_b.lock();
+		count_b--;
+
+		if (count_b == 0) {
+			s.release();
+		}
+
+		mutex_b.unlock();
 	}
 }
 
@@ -173,10 +151,32 @@ void dog(int const id)
 	while (true)
 	{
 		// do_stuff(id, "dog", "playing");
-		line->acquire(false);
-		line->release(false);
-		eating->acquire();
+		a.acquire();
+
+		if (count_a >= MAX_PETS) {
+			a.release();
+			continue;
+		}
+
+		mutex_a.lock();
+		count_a++;
+
+		if (count_a == 1) {
+			s.acquire();
+		}
+
+		mutex_a.unlock();
+		a.release();
+		std::printf(" %d ", count_a);
+
 		do_stuff(id, "dog", "eating");
-		eating->release();
+		mutex_a.lock();
+		count_a--;
+
+		if (count_a == 0) {
+			s.release();
+		}
+		
+		mutex_a.unlock();
 	}
 }
